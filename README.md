@@ -293,3 +293,12 @@ Docker stays optional (author decision 2026-10-06): an app may start with any co
 - **What the SDK does:** `VerifyAuditRecords` accepts a pruned record by its link: its `prev_hash` must be the previous record's hash, and its hash becomes the next record's `prev_hash`. Its content cannot be checked, because it is gone. `AuditRecord.Pruned` says which records these are.
 - **Everything else is unchanged:** a record without the marker whose content does not match its hash is still refused.
 - **SDK version:** `SDKVersion` is now 1.2.0. Manifests that require `>=1.0.0` still accept it.
+
+## heain-sdk 1.3: sealed data (heain-core C10, 2026-10-28)
+
+Some data must exist but must not be readable without a decision: individual votes, health results. `DataKey` hands the key to the app, so the app can always read what it sealed. Sealed data does not: the key stays in core.
+
+- `App.Seal(ctx, name, scope, lane, []SealInput)` seals up to 1000 records; store the returned `SealedRecord`s with their ids. A record is bound to its id, name and scope.
+- `App.OpenSealed(ctx, name, grant, reader, records)` opens them under a grant: a `Proposal` the app made, of a type core's `seal.policies` lists for `<app>/<name>`, approved and unexpired, whose data names `scope` and `readers`. Core refuses (403 `seal_open_refused`) a waiting, denied or expired grant, one of another app or type, a reader it does not name or who is recused from the matter (`p5.recusals`), a scope it does not cover, or more distinct records than `max_records_per_grant`. Every opening is audited by core and listed by `App.SealOpenings`.
+- `App.DestroySealKey` crypto-shreds the key on this node; core refuses (409 `seal_held`) while a legal hold names the data.
+- When the node dies, the node that takes over its role inherits its seal keys (escrow) and opens its records under a grant decided there.

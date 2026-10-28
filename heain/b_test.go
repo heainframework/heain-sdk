@@ -51,6 +51,28 @@ func (f *fake2) h(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/v1/app/certs/"):
 		valid := !f.revoked[strings.TrimPrefix(r.URL.Path, "/v1/app/certs/")]
 		_ = json.NewEncoder(w).Encode(map[string]any{"valid": valid})
+	case r.URL.Path == "/v1/app/sealed/ballots/seal": // C10 S2: an echo with the records "sealed" (reversed)
+		recs, _ := body["records"].([]any)
+		out := []map[string]any{}
+		for _, x := range recs {
+			m := x.(map[string]any)
+			out = append(out, map[string]any{"id": m["id"], "sealed_b64": m["data_b64"]})
+		}
+		f.events = append(f.events, map[string]any{"sealed": body["scope"]})
+		_ = json.NewEncoder(w).Encode(map[string]any{"key_id": "seal/G/svc-app/-/ballots/" + body["scope"].(string), "records": out})
+	case r.URL.Path == "/v1/app/sealed/ballots/open":
+		if body["grant"] != "g-ok" {
+			w.WriteHeader(403)
+			_, _ = w.Write([]byte(`{"error":{"code":"seal_open_refused","message":"the grant is not decided yet","retryable":false}}`))
+			return
+		}
+		recs, _ := body["records"].([]any)
+		out := []map[string]any{}
+		for _, x := range recs {
+			m := x.(map[string]any)
+			out = append(out, map[string]any{"id": m["id"], "data_b64": m["sealed_b64"]})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"records": out, "opened_under_grant": len(out)})
 	case r.URL.Path == "/v1/app/discover":
 		_ = json.NewEncoder(w).Encode(map[string]any{"instances": f.disco[r.URL.Query().Get("capability")]})
 	default:
