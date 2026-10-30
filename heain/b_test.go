@@ -51,6 +51,14 @@ func (f *fake2) h(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/v1/app/certs/"):
 		valid := !f.revoked[strings.TrimPrefix(r.URL.Path, "/v1/app/certs/")]
 		_ = json.NewEncoder(w).Encode(map[string]any{"valid": valid})
+	case r.URL.Path == "/v1/app/public/statements": // C11 S2
+		if body["kind"] == "forbidden.kind" {
+			w.WriteHeader(403)
+			_, _ = w.Write([]byte(`{"error":{"code":"public_statement_refused","message":"kind forbidden.kind is not in this app's public.statements","retryable":false}}`))
+			return
+		}
+		w.WriteHeader(201)
+		_ = json.NewEncoder(w).Encode(map[string]any{"seq": 7, "sha256": "ab", "node": "G"})
 	case r.URL.Path == "/v1/app/sealed/ballots/seal": // C10 S2: an echo with the records "sealed" (reversed)
 		recs, _ := body["records"].([]any)
 		out := []map[string]any{}

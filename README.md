@@ -302,3 +302,11 @@ Some data must exist but must not be readable without a decision: individual vot
 - `App.OpenSealed(ctx, name, grant, reader, records)` opens them under a grant: a `Proposal` the app made, of a type core's `seal.policies` lists for `<app>/<name>`, approved and unexpired, whose data names `scope` and `readers`. Core refuses (403 `seal_open_refused`) a waiting, denied or expired grant, one of another app or type, a reader it does not name or who is recused from the matter (`p5.recusals`), a scope it does not cover, or more distinct records than `max_records_per_grant`. Every opening is audited by core and listed by `App.SealOpenings`.
 - `App.DestroySealKey` crypto-shreds the key on this node; core refuses (409 `seal_held`) while a legal hold names the data.
 - When the node dies, the node that takes over its role inherits its seal keys (escrow) and opens its records under a grant decided there.
+
+## heain-sdk 1.4: public statements (heain-core C11, 2026-10-29)
+
+Some statements must be checkable by anyone, with no certificate: a lot's commitment, a signed result, the root of the receipts. Core puts them on the node's public log and proves each one is there, unchanged, at its place.
+
+- `App.PublishStatement(ctx, capability, kind, content)` publishes one (JSON, at most 64 KB). Core accepts only a kind its `public.statements` (P5) lists for the app, only from a capability on a listed lane, never lane identity, within `per_hour`. A published statement cannot be taken back.
+- `heain.CheckPublicStatement(ctx, httpClient, base, seq, caPEM)` reads statement `seq` from a node's public listener (`-public-addr`, plain HTTP) and verifies it: the exact bytes hash to the leaf, the inclusion path leads to the head's root, the head is signed by the node's key whose certificate chains to `caPEM` and names the node. Get the CA from `GET /v1/public/ca` and compare its fingerprint with the one announced elsewhere.
+- `heain.VerifyPublicStatement(raw, inclusion, head, caPEM)` does the same on data already fetched. It reports whether the head carries a time-stamp; verifying the token itself is left to the caller (for example `openssl ts -verify`).
